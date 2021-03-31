@@ -1,4 +1,4 @@
-# VERSION: 1.2
+# VERSION: 1.3
 # AUTHORS: Josef Kuchař (josef@josefkuchar.com)
 
 from helpers import download_file, retrieve_url
@@ -10,11 +10,14 @@ import os
 import io
 import gzip
 import configparser
+import re
 from urllib.parse import unquote
 from bs4 import BeautifulSoup
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
 
 class sktorrent(object):
-    url = 'https://www.hd-cztorrent.cz/'
+    url = 'https://sktorrent.eu/'
     name = 'SkTorrent'
     supported_categories = {'all': '0', 'movies': '6', 'tv': '4',
                             'music': '1', 'games': '2', 'anime': '7', 'software': '3'}
@@ -24,8 +27,6 @@ class sktorrent(object):
         config = configparser.RawConfigParser()
         path = os.path.dirname(os.path.abspath(__file__)) + '/sktorrent.txt'
 
-        print('asdfasfd')
-
         if os.path.isfile(path):
             config.read(path)
         else:
@@ -33,13 +34,11 @@ class sktorrent(object):
             file.write('[LOGIN]\nusername = YourUsername\npassword = YourPassword')
             file.close()
             exit()
-        print(config['LOGIN']['password'])
+
         login = {
             'uid': config['LOGIN']['username'],
             'pwd': config['LOGIN']['password']
         }
-
-        print(login)
 
         # Create cookie requests session
         self.session = requests.Session()
@@ -47,8 +46,6 @@ class sktorrent(object):
         # Login
         self.session.post(
             'http://sktorrent.eu/torrent/login.php', data=login)
-
-        print('asdfasdf')
 
     def download_torrent(self, info):
         file, path = tempfile.mkstemp()
@@ -71,8 +68,6 @@ class sktorrent(object):
         print(path + " " + info)
 
     def search(self, what, cat='all'):
-        print('asdfa')
-
         response = self.session.get(
             'http://sktorrent.eu/torrent/torrents_v2.php?search={}&category=0&zaner=&active=0'.format(what))
 
@@ -80,4 +75,28 @@ class sktorrent(object):
 
         torrents = soup.findAll('img', {'class': 'lozad'})
 
-        print(torrents[0].find_parent())
+        #self.download_torrent('http://sktorrent.eu/torrent/download.php?id=ec0b05411ef9a3c1a0ae98e35fa42d4ed54129b3')
+
+        for torrent in torrents:
+            details = {}
+
+            t = torrent.parent
+            info = torrent.find_parent('div').getText().splitlines()
+
+            details['desc_link'] = 'http://sktorrent.eu/torrent/' + t['href']
+            details['name'] = t.getText().strip()
+
+            parsed = urlparse.urlparse(t['href'])
+
+            id = parse_qs(parsed.query)['id'][0]
+
+            details['link'] = 'http://sktorrent.eu/torrent/download.php?id=' + id + '&f=file.torrent'
+
+            size = re.search(r'^\w+ ([\w. ]+)\|', info[-4])
+            details['size'] = size[1].strip()
+
+            details['seeds'] = re.search(r'\d+', info[-3])[0]
+            details['leech'] = re.search(r'\d+', info[-2])[0]
+            details['engine_url'] = 'http://sktorrent.eu/'
+
+            prettyPrinter(details)
