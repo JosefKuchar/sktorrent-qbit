@@ -1,4 +1,4 @@
-# VERSION: 1.3
+# VERSION: 1.7
 # AUTHORS: Josef Kuchař (josef@josefkuchar.com)
 
 from helpers import download_file, retrieve_url
@@ -17,7 +17,7 @@ import urllib.parse as urlparse
 from urllib.parse import parse_qs
 
 class sktorrent(object):
-    url = 'https://sktorrent.eu/'
+    url = 'http://sktorrent.eu/'
     name = 'SkTorrent'
     supported_categories = {'all': '0', 'movies': '6', 'tv': '4',
                             'music': '1', 'games': '2', 'anime': '7', 'software': '3'}
@@ -31,7 +31,8 @@ class sktorrent(object):
             config.read(path)
         else:
             file = open(path, 'w')
-            file.write('[LOGIN]\nusername = YourUsername\npassword = YourPassword')
+            file.write(
+                '[LOGIN]\nusername = YourUsername\npassword = YourPassword')
             file.close()
             exit()
 
@@ -69,13 +70,11 @@ class sktorrent(object):
 
     def search(self, what, cat='all'):
         response = self.session.get(
-            'http://sktorrent.eu/torrent/torrents_v2.php?search={}&category=0&zaner=&active=0'.format(what))
+            'http://sktorrent.eu/torrent/torrents_v2.php?search={}'.format(what))
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, 'lxml')
 
         torrents = soup.findAll('img', {'class': 'lozad'})
-
-        #self.download_torrent('http://sktorrent.eu/torrent/download.php?id=ec0b05411ef9a3c1a0ae98e35fa42d4ed54129b3')
 
         for torrent in torrents:
             details = {}
@@ -90,7 +89,8 @@ class sktorrent(object):
 
             id = parse_qs(parsed.query)['id'][0]
 
-            details['link'] = 'http://sktorrent.eu/torrent/download.php?id=' + id + '&f=file.torrent'
+            details['link'] = 'http://sktorrent.eu/torrent/download.php?id=' + \
+                id + '&f=file.torrent'
 
             size = re.search(r'^\w+ ([\w. ]+)\|', info[-4])
             details['size'] = size[1].strip()
